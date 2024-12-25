@@ -5,9 +5,25 @@ import {
 	fetchMissedEvents,
 	subscribeToPingEvents,
 	attachWebSocketErrorHandlers,
-	testWebsocketFallback,
 } from "./sentPong";
 import { logger } from "./logger";
+import Bottleneck from "bottleneck";
+import {
+	testReservoirDepletion,
+	testThrottling,
+	testWebsocketFallback,
+} from "./test";
+
+export const limiter = new Bottleneck({
+	reservoir: 12_000_000,
+	reservoirRefreshAmount: 12_000_000,
+	reservoirRefreshInterval: 30 * 24 * 60 * 60 * 1000,
+	minTime: 216,
+});
+
+limiter.on("depleted", () => {
+	logger.info("Request limit reached. Throttling requests...");
+});
 
 async function main() {
 	logger.info("Ping Pong App Starting Up...");
@@ -26,7 +42,11 @@ async function main() {
 
 	logger.info("Bot initialized!");
 
-	testWebsocketFallback();
+	// testWebsocketFallback();
+
+	// testThrottling();
+
+	// testReservoirDepletion();
 }
 
 main().catch((err) => {

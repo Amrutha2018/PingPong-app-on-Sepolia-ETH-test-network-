@@ -11,6 +11,7 @@ import {
 	updatePendingEntry,
 } from "./state_managers/pendingStateManager";
 import { logger } from "./logger";
+import { limiter } from "./main";
 
 const PENDING_LIMIT_MS = 2 * 60_000;
 const MAX_ATTEMPTS_RESENDING = 5;
@@ -37,7 +38,9 @@ export async function confirmPendingTransactions(): Promise<void> {
 		}
 
 		try {
-			const receipt = await provider.getTransactionReceipt(pongTxHash);
+			const receipt = await limiter.schedule(() =>
+				provider.getTransactionReceipt(pongTxHash)
+			);
 			if (!receipt) {
 				// Transaction is pending
 				const now = Date.now();
@@ -147,7 +150,9 @@ export async function speedUpTransaction(
 		const wallet = AppContext.wallet;
 		const { nonce, pongTxHash } = entry;
 
-		const feeData = await AppContext.httpProvider.getFeeData();
+		const feeData = await limiter.schedule(() =>
+			AppContext.httpProvider.getFeeData()
+		);
 		let maxFeePerGas = feeData.maxFeePerGas;
 		let maxPriorityFeePerGas = feeData.maxPriorityFeePerGas;
 		if (!maxFeePerGas) maxFeePerGas = ethers.parseUnits("5", "gwei");
@@ -157,11 +162,13 @@ export async function speedUpTransaction(
 		maxFeePerGas = (maxFeePerGas * 125n) / 100n;
 		maxPriorityFeePerGas = (maxPriorityFeePerGas * 125n) / 100n;
 
-		const txResponse = await AppContext.pingPongContract.pong(pongTxHash, {
-			nonce,
-			maxFeePerGas,
-			maxPriorityFeePerGas,
-		});
+		const txResponse = await limiter.schedule(() =>
+			AppContext.pingPongContract.pong(pongTxHash, {
+				nonce,
+				maxFeePerGas,
+				maxPriorityFeePerGas,
+			})
+		);
 
 		logger.info(
 			`Speed up: oldTxHash=${entry.pongTxHash}, newTxHash=${txResponse.hash}`
@@ -178,7 +185,9 @@ export async function cancelTransaction(
 ): Promise<string | null> {
 	try {
 		const wallet = AppContext.wallet;
-		const feeData = await AppContext.httpProvider.getFeeData();
+		const feeData = await limiter.schedule(() =>
+			AppContext.httpProvider.getFeeData()
+		);
 		let maxFeePerGas = feeData.maxFeePerGas ?? ethers.parseUnits("5", "gwei");
 		let maxPriorityFeePerGas =
 			feeData.maxPriorityFeePerGas ?? ethers.parseUnits("2", "gwei");
@@ -186,13 +195,15 @@ export async function cancelTransaction(
 		maxFeePerGas = (maxFeePerGas * 200n) / 100n;
 		maxPriorityFeePerGas = (maxPriorityFeePerGas * 200n) / 100n;
 
-		const txResponse = await wallet.sendTransaction({
-			to: wallet.address,
-			value: 0,
-			nonce: entry.nonce,
-			maxFeePerGas,
-			maxPriorityFeePerGas,
-		});
+		const txResponse = await limiter.schedule(() =>
+			wallet.sendTransaction({
+				to: wallet.address,
+				value: 0,
+				nonce: entry.nonce,
+				maxFeePerGas,
+				maxPriorityFeePerGas,
+			})
+		);
 
 		logger.info(
 			`cancelTransaction: Replacing oldTxHash=${entry.pongTxHash} with cancelTxHash=${txResponse.hash}, nonce=${entry.nonce}`

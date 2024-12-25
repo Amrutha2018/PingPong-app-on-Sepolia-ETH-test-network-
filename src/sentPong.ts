@@ -7,6 +7,7 @@ import {
 } from "./fallbackPollingManager";
 import { addPendingEntry } from "./state_managers/pendingStateManager";
 import { logger } from "./logger";
+import { limiter } from "./main";
 
 export async function createPongTransaction(
 	pingTxHash: string,
@@ -18,8 +19,8 @@ export async function createPongTransaction(
 		logger.info(
 			`Sending pong() for Ping txHash=${pingTxHash}, block=${blockNumber}, index=${logIndex}`
 		);
-		const txResponse: TransactionResponse = await pingPongContract.pong(
-			pingTxHash
+		const txResponse: TransactionResponse = await limiter.schedule(() =>
+			pingPongContract.pong(pingTxHash)
 		);
 		addPendingEntry({
 			blockNumber,
@@ -52,12 +53,14 @@ export async function fetchMissedEvents(fromBlock: number): Promise<void> {
 	logger.info(
 		`Fetching missed Ping events from block ${fromBlock} to ${toBlock}`
 	);
-	const logs: Log[] = await provider.getLogs({
-		fromBlock,
-		toBlock,
-		topics: [pingTopic],
-		address: AppContext.contractAddress,
-	});
+	const logs: Log[] = await limiter.schedule(() =>
+		provider.getLogs({
+			fromBlock,
+			toBlock,
+			topics: [pingTopic],
+			address: AppContext.contractAddress,
+		})
+	);
 
 	for (const log of logs) {
 		const { blockNumber, index: logIndex, topics, transactionHash } = log;
@@ -85,20 +88,21 @@ export async function fetchMissedEvents(fromBlock: number): Promise<void> {
 }
 
 export function subscribeToPingEvents() {
-	const { pingPongContract, confirmedState: state } = AppContext;
+	const { pingPongContract, confirmedState, pendingState } = AppContext;
 
 	pingPongContract.on("Ping", async (...args) => {
 		const event = args[args.length - 1];
-		console.log(event);
 		const log = event.log as Log;
-		console.log(log);
 		const { blockNumber, transactionHash, index: logIndex } = log;
 
 		try {
 			if (
-				blockNumber < state.lastProcessedBlock ||
-				(blockNumber === state.lastProcessedBlock &&
-					logIndex <= state.lastProcessedLogIndex)
+				blockNumber < confirmedState.lastProcessedBlock ||
+				(blockNumber === confirmedState.lastProcessedBlock &&
+					logIndex <= confirmedState.lastProcessedLogIndex) ||
+				blockNumber < pendingState.lastProcessedBlock ||
+				(blockNumber === pendingState.lastProcessedBlock &&
+					logIndex <= pendingState.lastProcessedLogIndex)
 			) {
 				return;
 			}
@@ -118,16 +122,8 @@ export function subscribeToPingEvents() {
 export function attachWebSocketErrorHandlers() {
 	const { wsProvider } = AppContext;
 
-	wsProvider.addListener("error", (event: any) => {
-		logger.error("(WebSocket) Error encountered:", event.message || event);
-		handleWebSocketFailure();
-	});
-
-	wsProvider.addListener("close", (event: any) => {
-		logger.warn(
-			`(WebSocket) Connection closed (code: ${event.code}). Reason:`,
-			event.reason || "No reason given"
-		);
+	wsProvider.addListener("error", (error: Error) => {
+		logger.error("(WebSocket) Connection error:", error);
 		handleWebSocketFailure();
 	});
 }
@@ -171,10 +167,4 @@ export async function reInitializeWebSocketProvider() {
 	AppContext.wsProvider = newWsProvider;
 	logger.info("(WebSocket) New WebSocketProvider successfully created.");
 	return true;
-}
-
-export async function testWebsocketFallback() {
-	const { wsProvider } = AppContext;
-
-	wsProvider.destroy();
 }

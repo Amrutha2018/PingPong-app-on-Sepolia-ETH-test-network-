@@ -1,0 +1,12 @@
+node_modules
+logs
+.vscode
+pendingStore.json
+state.json
+.env
+PingEvents.log
+node_modules
+*.log
+Dockerfile
+.dockerignore
+dist

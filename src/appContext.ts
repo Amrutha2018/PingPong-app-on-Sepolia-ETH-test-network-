@@ -125,7 +125,7 @@ export async function initializeAppContext() {
 
 	AppContext.httpProvider = new ethers.JsonRpcProvider(HTTP_PROVIDER_URL);
 	AppContext.wsProvider = new ethers.WebSocketProvider(WEBSOCKET_PROVIDER_URL);
-	AppContext.wallet = new ethers.Wallet(privateKey, AppContext.httpProvider);
+	AppContext.wallet = new ethers.Wallet(privateKey, AppContext.wsProvider);
 	AppContext.pingPongContract = new ethers.Contract(
 		CONTRACT_ADDRESS,
 		CONTRACT_ABI,

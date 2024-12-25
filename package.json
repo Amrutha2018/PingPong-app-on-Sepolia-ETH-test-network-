@@ -10,6 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "bottleneck": "^2.19.5",
     "dotenv": "^16.4.7",
     "ethers": "^6.13.4",
     "source-map-support": "^0.5.21",
