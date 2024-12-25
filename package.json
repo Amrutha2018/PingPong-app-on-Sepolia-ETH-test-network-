@@ -1,0 +1,25 @@
+{
+  "name": "ping-pong-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "dotenv": "^16.4.7",
+    "ethers": "^6.13.4",
+    "source-map-support": "^0.5.21",
+    "winston": "^3.17.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/source-map-support": "^0.5.10",
+    "@types/stack-trace": "^0.0.33",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.7.2"
+  }
+}
