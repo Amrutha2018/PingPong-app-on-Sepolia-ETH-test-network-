@@ -2,55 +2,58 @@ import "dotenv/config";
 import { AppContext, initializeAppContext } from "./appContext";
 import { confirmPendingTransactions } from "./pendingTransactionManager";
 import {
-	fetchMissedEvents,
-	subscribeToPingEvents,
-	attachWebSocketErrorHandlers,
+  fetchMissedEvents,
+  subscribeToPingEvents,
+  attachWebSocketErrorHandlers,
+  startWebSocketHeartbeat,
 } from "./sentPong";
 import { logger } from "./logger";
 import Bottleneck from "bottleneck";
 import {
-	testReservoirDepletion,
-	testThrottling,
-	testWebsocketFallback,
+  testReservoirDepletion,
+  testThrottling,
+  testWebsocketFallback,
 } from "./test";
 
 export const limiter = new Bottleneck({
-	reservoir: 12_000_000,
-	reservoirRefreshAmount: 12_000_000,
-	reservoirRefreshInterval: 30 * 24 * 60 * 60 * 1000,
-	minTime: 216,
+  reservoir: 12_000_000,
+  reservoirRefreshAmount: 12_000_000,
+  reservoirRefreshInterval: 30 * 24 * 60 * 60 * 1000,
+  minTime: 216,
 });
 
 limiter.on("depleted", () => {
-	logger.info("Request limit reached. Throttling requests...");
+  logger.info("Request limit reached. Throttling requests...");
 });
 
 async function main() {
-	logger.info("Ping Pong App Starting Up...");
-	await initializeAppContext();
-	await confirmPendingTransactions();
-	await fetchMissedEvents(
-		AppContext.pendingState.lastProcessedBlock ||
-			AppContext.confirmedState.lastProcessedBlock
-	);
-	subscribeToPingEvents();
-	attachWebSocketErrorHandlers();
+  logger.info("Ping Pong App Starting Up...");
+  await initializeAppContext();
+  await confirmPendingTransactions();
+  const lastProcessedBlock = Math.max(
+    AppContext.pendingState.lastProcessedBlock || 0,
+    AppContext.confirmedState.lastProcessedBlock || 0
+  );
+  await fetchMissedEvents(lastProcessedBlock + 1);
+  subscribeToPingEvents();
+  startWebSocketHeartbeat();
+  attachWebSocketErrorHandlers();
 
-	setInterval(async () => {
-		await confirmPendingTransactions();
-	}, 30_000);
+  setInterval(async () => {
+    await confirmPendingTransactions();
+  }, 30_000);
 
-	logger.info("Bot initialized!");
+  logger.info("Bot initialized!");
 
-	// testWebsocketFallback();
+  // testWebsocketFallback();
 
-	// testThrottling();
+  // testThrottling();
 
-	// testReservoirDepletion();
+  // testReservoirDepletion();
 }
 
 main().catch((err) => {
-	logger.error(err);
-	logger.info("Application is shutting down...");
-	return 0;
+  logger.error(err);
+  logger.info("Application is shutting down...");
+  return 0;
 });
