@@ -1,8 +1,8 @@
-# Use Node.js as the base image
-FROM node:16
+# Use the official Node.js image as the base image
+FROM node:18-alpine
 
-# Set the working directory inside the container
-WORKDIR /app
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
 # Copy package.json and package-lock.json
 COPY package*.json ./
@@ -10,11 +10,11 @@ COPY package*.json ./
 # Install dependencies
 RUN npm install
 
-# Copy the rest of the application files
+# Copy the entire source code to the container
 COPY . .
 
-# Expose the port your app runs on
-EXPOSE 3000
+# Install ts-node globally
+RUN npm install -g ts-node typescript
 
-# Start the application
-CMD ["npx", "ts-node", "src/main.ts"]
+# Command to run your app using ts-node
+CMD ["ts-node", "src/main.ts"]

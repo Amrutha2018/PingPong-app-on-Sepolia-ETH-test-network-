@@ -136,7 +136,13 @@ export function startWebSocketHeartbeat() {
   heartbeatInterval = setInterval(async () => {
     try {
       logger.info("(WebSocket) Sending heartbeat check...");
-      await wsProvider.getBlockNumber();
+      const timeout = 10_000; // 10 seconds
+      await Promise.race([
+        wsProvider.getBlockNumber(),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error("Heartbeat timeout")), timeout)
+        ),
+      ]);
       logger.info("(WebSocket) Heartbeat check passed.");
     } catch (error) {
       logger.error("(WebSocket) Heartbeat check failed:", error);
