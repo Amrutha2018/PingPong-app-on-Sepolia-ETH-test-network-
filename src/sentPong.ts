@@ -1,5 +1,5 @@
 import { Log, TransactionResponse, ethers } from "ethers";
-import { AppContext } from "./appContext";
+import { AppContext, HTTP_PROVIDER_URL, reCreateWalletAndContract, WEBSOCKET_PROVIDER_URL } from "./appContext";
 import {
   unsubscribeFromPingEventsViaWebSocket,
   startPollingFallback,
@@ -168,7 +168,13 @@ export function attachWebSocketErrorHandlers() {
   });
 }
 
-export function handleWebSocketFailure() {
+export async function handleWebSocketFailure() {
+  try {
+    await AppContext.httpProvider.getBlockNumber();
+  } catch(error) {
+    AppContext.httpProvider = new ethers.JsonRpcProvider(HTTP_PROVIDER_URL)
+  }
+  reCreateWalletAndContract(AppContext.httpProvider)
   unsubscribeFromPingEventsViaWebSocket();
   stopWebSocketHeartbeat();
   startPollingFallback();
@@ -181,6 +187,7 @@ export async function attemptWebSocketReconnection() {
   try {
     const webSocketRunning = await reInitializeWebSocketProvider();
     if (webSocketRunning) {
+      reCreateWalletAndContract(AppContext.wsProvider)
       subscribeToPingEvents();
       attachWebSocketErrorHandlers();
       startWebSocketHeartbeat();
@@ -196,7 +203,7 @@ export async function attemptWebSocketReconnection() {
 }
 
 export async function reInitializeWebSocketProvider() {
-  const WS_URL = process.env.WEBSOCKET_PROVIDER_URL;
+  const WS_URL = WEBSOCKET_PROVIDER_URL;
   if (!WS_URL) {
     throw new Error("Websocket URL Missing!");
   }

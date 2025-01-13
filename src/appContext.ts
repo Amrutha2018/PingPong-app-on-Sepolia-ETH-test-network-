@@ -9,8 +9,8 @@ import { logger } from "./logger";
 
 dotenv.config();
 
-const HTTP_PROVIDER_URL = process.env.HTTP_PROVIDER_URL;
-const WEBSOCKET_PROVIDER_URL = process.env.WEBSOCKET_PROVIDER_URL;
+export const HTTP_PROVIDER_URL = process.env.HTTP_PROVIDER_URL;
+export const WEBSOCKET_PROVIDER_URL = process.env.WEBSOCKET_PROVIDER_URL;
 
 const CONTRACT_ADDRESS = "0xA7F42ff7433cB268dD7D59be62b00c30dEd28d3D";
 const CONTRACT_ABI = [
@@ -157,4 +157,17 @@ export async function initializeAppContext() {
 		throw error;
 	}
 	logger.info("AppContext initialized successfully!");
+}
+
+export function reCreateWalletAndContract(provider: ethers.JsonRpcProvider | ethers.WebSocketProvider) {
+	const privateKey = process.env.PRIVATE_KEY;
+	if (!privateKey) {
+		throw new Error("PRIVATE_KEY is not set in the environment (.env).");
+	}
+	AppContext.wallet = new ethers.Wallet(privateKey, provider);
+	AppContext.pingPongContract = new ethers.Contract(
+		CONTRACT_ADDRESS,
+		CONTRACT_ABI,
+		AppContext.wallet
+	);
 }
