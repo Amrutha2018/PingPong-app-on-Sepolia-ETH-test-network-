@@ -1,4 +1,4 @@
-# Task K. Bot Syncing
+# Bot Syncing
 
 Wallet Address \- 0x0E29f7B68a8af15F16acD772e0b081a470de0ED6  
 Starting Block \- 7386018  
